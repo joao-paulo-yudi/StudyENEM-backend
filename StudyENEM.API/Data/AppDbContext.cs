@@ -8,9 +8,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<Attempt> Attempts => Set<Attempt>();
     public DbSet<AttemptAnswer> AttemptAnswers => Set<AttemptAnswer>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
         modelBuilder.Entity<AttemptAnswer>()
             .HasOne(a => a.Attempt)
             .WithMany(at => at.Answers)

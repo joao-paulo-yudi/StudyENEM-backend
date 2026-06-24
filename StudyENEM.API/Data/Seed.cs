@@ -1,10 +1,18 @@
 using StudyENEM.API.Models;
+using StudyENEM.API.Services;
 
 namespace StudyENEM.API.Data;
 
 public static class Seed
 {
     public static void Apply(AppDbContext db)
+    {
+        SeedQuestions(db);
+        SeedUsers(db);
+        SeedAttempts(db);
+    }
+
+    private static void SeedQuestions(AppDbContext db)
     {
         if (db.Questions.Any()) return;
 
@@ -275,4 +283,129 @@ public static class Seed
         db.Questions.AddRange(questions);
         db.SaveChanges();
     }
+
+    // ── Usuário de teste ────────────────────────────────────────────────
+    // Apenas um usuário, conforme solicitado: João Teste / senha "1234".
+    private static void SeedUsers(AppDbContext db)
+    {
+        if (db.Users.Any()) return;
+
+        var (hash, salt) = PasswordHasher.Hash("1234");
+        db.Users.Add(new User
+        {
+            Name = "João Teste",
+            Email = "joao@studyenem.com",
+            PasswordHash = hash,
+            PasswordSalt = salt,
+            CreatedAt = DateTime.UtcNow.AddDays(-80),
+        });
+        db.SaveChanges();
+    }
+
+    // ── Realizações de simulados "fake" ─────────────────────────────────
+    // Gera um histórico realista para João Teste, para que os dashboards
+    // (evolução, desempenho por área, plano de estudos, histórico) tenham
+    // substância. Os dados são determinísticos (seed fixo) e contam uma
+    // narrativa de Learning Analytics: aluno forte em Linguagens/Humanas,
+    // mais fraco em Matemática/Natureza, evoluindo ao longo do tempo.
+    private const string StudentName = "João Teste";
+    private const string AreaNatureza  = "Ciências da Natureza e suas Tecnologias";
+    private const string AreaMatematica = "Matemática e suas Tecnologias";
+    private const string AreaLinguagens = "Linguagens, Códigos e suas Tecnologias";
+    private const string AreaHumanas    = "Ciências Humanas e suas Tecnologias";
+
+    private static void SeedAttempts(AppDbContext db)
+    {
+        if (db.Attempts.Any()) return;
+
+        var questions = db.Questions.ToList();
+        if (questions.Count == 0) return;
+
+        var rng = new Random(20260624);
+
+        // Aproveitamento base por área (0..1) — define os pontos fortes/fracos.
+        var baseAccuracy = new Dictionary<string, double>
+        {
+            [AreaLinguagens]  = 0.72,
+            [AreaHumanas]     = 0.66,
+            [AreaNatureza]    = 0.52,
+            [AreaMatematica]  = 0.40,
+        };
+
+        // Cada spec é um simulado realizado, do mais antigo ao mais recente.
+        // "improve" simula a evolução do aluno ao longo das semanas.
+        var specs = new[]
+        {
+            new SimSpec(74, "geral", null,           20, 0.00),
+            new SimSpec(66, "foco",  AreaMatematica,  8, 0.02),
+            new SimSpec(58, "geral", null,           20, 0.04),
+            new SimSpec(47, "foco",  AreaNatureza,   10, 0.05),
+            new SimSpec(38, "geral", null,           30, 0.07),
+            new SimSpec(27, "foco",  AreaHumanas,     8, 0.09),
+            new SimSpec(16, "geral", null,           20, 0.11),
+            new SimSpec(6,  "geral", null,           30, 0.13),
+        };
+
+        var attempts = new List<Attempt>();
+
+        foreach (var spec in specs)
+        {
+            var pool = spec.Area is null
+                ? questions
+                : questions.Where(q => q.Area == spec.Area).ToList();
+
+            // Embaralha e seleciona questões distintas (sem repetição no simulado).
+            var selected = pool.OrderBy(_ => rng.Next()).Take(spec.Count).ToList();
+            if (selected.Count == 0) continue;
+
+            var startedAt = DateTime.UtcNow.AddDays(-spec.DaysAgo).AddHours(-rng.Next(0, 6));
+            // ~80–125 s por questão.
+            var timeSeconds = (int)selected.Sum(_ => 80 + rng.Next(0, 46));
+
+            var attempt = new Attempt
+            {
+                StudentName = StudentName,
+                StartedAt = startedAt,
+                FinishedAt = startedAt.AddSeconds(timeSeconds),
+                Mode = spec.Mode,
+                Area = spec.Area,
+                TimeTakenSeconds = timeSeconds,
+            };
+
+            foreach (var q in selected)
+            {
+                double prob = baseAccuracy.GetValueOrDefault(q.Area, 0.55) + spec.Improve + DifficultyAdjust(q.Difficulty);
+                prob = Math.Clamp(prob, 0.05, 0.95);
+                bool correct = rng.NextDouble() < prob;
+
+                attempt.Answers.Add(new AttemptAnswer
+                {
+                    QuestionId = q.Id,
+                    SelectedOption = correct ? char.ToUpper(q.CorrectOption) : PickWrongOption(q.CorrectOption, rng),
+                    IsCorrect = correct,
+                });
+            }
+
+            attempts.Add(attempt);
+        }
+
+        db.Attempts.AddRange(attempts);
+        db.SaveChanges();
+    }
+
+    private static double DifficultyAdjust(string difficulty) => difficulty switch
+    {
+        "fácil"   => 0.12,
+        "difícil" => -0.12,
+        _          => 0.0,
+    };
+
+    private static char PickWrongOption(char correct, Random rng)
+    {
+        char c;
+        do { c = (char)('A' + rng.Next(5)); } while (c == char.ToUpper(correct));
+        return c;
+    }
+
+    private readonly record struct SimSpec(int DaysAgo, string Mode, string? Area, int Count, double Improve);
 }
