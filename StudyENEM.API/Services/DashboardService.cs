@@ -90,6 +90,8 @@ public class DashboardService(AppDbContext db)
         var history = attempts.Select(ExamService.ToSummary).ToList();
         ComparisonDto? comparison = history.Count >= 2
             ? new ComparisonDto(
+                Math.Round(history[0].Percentage, 1),
+                Math.Round(history[1].Percentage, 1),
                 Math.Round(history[0].Percentage - history[1].Percentage, 1),
                 history[0].TriAverage is double last && history[1].TriAverage is double previous
                     ? Math.Round(last - previous, 1)

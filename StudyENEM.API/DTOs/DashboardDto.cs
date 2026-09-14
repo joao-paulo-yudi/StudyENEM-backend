@@ -49,7 +49,8 @@ public record TopicPerformanceDto(
 );
 
 /// <summary>Variação do último simulado em relação ao anterior.</summary>
-public record ComparisonDto(double PercentageDelta, double? TriAverageDelta);
+/// <summary>Comparação entre os dois últimos simulados: taxas de acerto, a diferença e a variação da nota TRI.</summary>
+public record ComparisonDto(double CurrentPercentage, double PreviousPercentage, double PercentageDelta, double? TriAverageDelta);
 
 public record StudyPlanItemDto(
     int TopicId,
