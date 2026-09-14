@@ -5,9 +5,9 @@ using StudyENEM.API.Models;
 
 namespace StudyENEM.API.Services;
 
-public class AuthService(AppDbContext db)
+public class AuthService(AppDbContext db, TokenService tokens)
 {
-    public async Task<AuthUserDto?> LoginAsync(LoginDto dto)
+    public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
     {
         var identifier = (dto.Identifier ?? string.Empty).Trim().ToLower();
         if (string.IsNullOrEmpty(identifier) || string.IsNullOrEmpty(dto.Password)) return null;
@@ -18,10 +18,10 @@ public class AuthService(AppDbContext db)
         if (user is null) return null;
         if (!PasswordHasher.Verify(dto.Password, user.PasswordHash, user.PasswordSalt)) return null;
 
-        return new AuthUserDto(user.Id, user.Name, user.Email);
+        return CreateResponse(user);
     }
 
-    public async Task<(AuthUserDto? User, string? Error)> RegisterAsync(RegisterDto dto)
+    public async Task<(AuthResponseDto? Response, string? Error)> RegisterAsync(RegisterDto dto)
     {
         var name = (dto.Name ?? string.Empty).Trim();
         var email = (dto.Email ?? string.Empty).Trim().ToLower();
@@ -37,6 +37,12 @@ public class AuthService(AppDbContext db)
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        return (new AuthUserDto(user.Id, user.Name, user.Email), null);
+        return (CreateResponse(user), null);
+    }
+
+    private AuthResponseDto CreateResponse(User user)
+    {
+        var (token, expiresAt) = tokens.Create(user);
+        return new AuthResponseDto(token, expiresAt, new AuthUserDto(user.Id, user.Name, user.Email));
     }
 }

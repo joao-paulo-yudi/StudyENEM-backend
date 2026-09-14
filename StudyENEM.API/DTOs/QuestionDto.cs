@@ -1,60 +1,32 @@
 namespace StudyENEM.API.DTOs;
 
-public record QuestionDto(
+// ── Catálogo (filtros do banco de questões e do simulado) ──────────────────
+public record TopicDto(int Id, string Name, int QuestionCount);
+public record SubjectDto(int Id, string Name, List<TopicDto> Topics);
+public record AreaCatalogDto(int Id, string Code, string Name, int QuestionCount, List<SubjectDto> Subjects);
+public record QuestionCatalogDto(List<int> Years, List<AreaCatalogDto> Areas);
+
+public record AlternativeDto(char Letter, string Text);
+
+/// <summary>Questão do banco de questões, com gabarito e metadados do INEP.</summary>
+public record QuestionBankItemDto(
     int Id,
     int Year,
-    string Area,
+    int Number,
+    int Day,
+    string AreaCode,
+    string AreaName,
+    int SubjectId,
     string Subject,
+    int TopicId,
     string Topic,
-    string Difficulty,
+    string? ForeignLanguage,
+    int Skill,
+    string SkillDescription,
     string Statement,
-    string OptionA,
-    string OptionB,
-    string OptionC,
-    string OptionD,
-    string OptionE
+    List<AlternativeDto> Alternatives,
+    char? CorrectOption,
+    /// <summary>Parâmetro b convertido para a escala do ENEM (dificuldade do item).</summary>
+    double? TriDifficulty,
+    string? TriExclusionReason
 );
-
-public record SubmitAnswerDto(int QuestionId, char SelectedOption);
-
-public record StartAttemptDto(string StudentName, string Mode, int? Count, int? Year, string? Area);
-
-public record SubmitAttemptDto(int AttemptId, int? TimeTakenSeconds, List<SubmitAnswerDto> Answers);
-
-public record AttemptResultDto(
-    int AttemptId,
-    string StudentName,
-    DateTime StartedAt,
-    DateTime FinishedAt,
-    int TotalQuestions,
-    int CorrectAnswers,
-    double Score,
-    List<AnswerResultDto> AnswerDetails
-);
-
-public record AnswerResultDto(
-    int QuestionId,
-    string Subject,
-    string Topic,
-    string Area,
-    char SelectedOption,
-    char CorrectOption,
-    bool IsCorrect
-);
-
-public record PerformanceSummaryDto(
-    string StudentName,
-    int TotalAttempts,
-    int TotalQuestions,
-    int TotalCorrect,
-    int TotalTimeSeconds,
-    List<AreaPerformanceDto> ByArea,
-    List<SubjectPerformanceDto> BySubject,
-    List<AttemptSummaryDto> RecentAttempts,
-    List<StudyPlanItemDto> StudyPlan
-);
-
-public record AreaPerformanceDto(string Area, int Total, int Correct, double Percentage);
-public record SubjectPerformanceDto(string Subject, string Area, int Total, int Correct, double Percentage);
-public record AttemptSummaryDto(int AttemptId, DateTime Date, int Total, int Correct, double Score, string? Area, string? Mode, int? TimeTakenSeconds);
-public record StudyPlanItemDto(string Topic, string Area, string Priority, int Mastery, int Attempts, string Reason);

@@ -1,0 +1,293 @@
+{
+ "descricao": "Validação da TRI: padrões de resposta reais de participantes do caderno AZUL do ENEM 2022 com a nota oficial (microdados do INEP). Os parâmetros dos itens e as escalas estão em enem_2022.sql.",
+ "casos": [
+  {
+   "area": "LC",
+   "lingua": "espanhol",
+   "respostas": "*********************************************",
+   "notaOficial": 270.6
+  },
+  {
+   "area": "LC",
+   "lingua": "espanhol",
+   "respostas": "BCCBABCCEBABAEBACBABDAACDEEADAAEDBECADCDEADCC",
+   "notaOficial": 399.8
+  },
+  {
+   "area": "LC",
+   "lingua": "espanhol",
+   "respostas": "EECBABBEBDDCCDCBDCDBCBDECDABCCBCAEBCACBDBCDDB",
+   "notaOficial": 437.0
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "AEBBDBAEAAADCDECAECAAAEBBCBCDBABDBACAABCACBBA",
+   "notaOficial": 463.6
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "ACCCEEBDAAAADDAB.CCEAAAECDEADAACDDEAACDEDCC.A",
+   "notaOficial": 484.4
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "BDEACECEADBBDBEABCCDAAEDCCBADBCCADACECEDADECE",
+   "notaOficial": 502.7
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "DDAEEDBEAEAEBDAAEACAAAAEBBBADAAEBDCBAEAEBEEEE",
+   "notaOficial": 519.7
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "BDBDEEAAADACDDCEBACBBEAECDCCDAEABDCEACADDDEEC",
+   "notaOficial": 535.4
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "DCBDEEBCAACBDDACBDCCEACEBACBDABAEDACAAADBEEEC",
+   "notaOficial": 550.7
+  },
+  {
+   "area": "LC",
+   "lingua": "espanhol",
+   "respostas": "EDBAABEAACCBBDBABBBBBACECCBBDAAEBDCDADADBEEDD",
+   "notaOficial": 567.4
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "DDBDEECAACABCDECDBCCBDAECCCADDAACDCCAECDBBEEE",
+   "notaOficial": 586.7
+  },
+  {
+   "area": "LC",
+   "lingua": "ingles",
+   "respostas": "DCBDEEBBAEABBDBBBACCDAEECCCBDDAADDACABADEDEDE",
+   "notaOficial": 613.0
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "***C*C**********************************D****",
+   "notaOficial": 305.1
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "CADBADEADCAEACBDABCEBACDACBABCEABEDACAEBCBDEC",
+   "notaOficial": 421.5
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "ADBCCDDBEAADECAEBCDAADCAAABEADBEBCEADBBCCEADA",
+   "notaOficial": 457.6
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "ADABEAAEDBAACCABEBABADEEBDEECBDDBDCDBDADBEDAC",
+   "notaOficial": 479.0
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "CDABCABABAABEBEBCABBABDAAEEEBEABDCEDEBEEDEEBE",
+   "notaOficial": 496.0
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "DEACCAECEBAEEBCECDEBDDDBAAECEDADACBDAABEDEA*D",
+   "notaOficial": 511.2
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "ECABCACAABAEEAAEBBABBCDBAEACDBCCBCCBEBECDBBCD",
+   "notaOficial": 526.0
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "DEADABECCBACECACAABBEBBDAACBBBCABACCBBCADAECE",
+   "notaOficial": 541.6
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "AEABCDABDDADECEEBCEBCDEAAABBEBDBBCCDDBAABCCCE",
+   "notaOficial": 558.3
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "CCABCDDBDBAAEBBEAACBECDBAADCCBDADDCECBCCDBDCE",
+   "notaOficial": 577.4
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "CEABABCADCAAEBEEDBEBADDAAADECEDACACEBADDDBACA",
+   "notaOficial": 600.1
+  },
+  {
+   "area": "CH",
+   "lingua": null,
+   "respostas": "ACABEADAEDAAEBEECAEBADDDAADBAEDACACDDBDDDBBCA",
+   "notaOficial": 632.5
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "BBEBEECCCABBCDBDEDAECAABCAEEAAABCDBCAEAADCAED",
+   "notaOficial": 360.6
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "CADADCCDEBCADBBEDACECCDBCBBABDDCBBDADCECADCDB",
+   "notaOficial": 405.9
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "ABEDDEBCEABBCDEABACBADAECDDBEDBBCEABCADAACEAC",
+   "notaOficial": 423.1
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "DADCCEBCDCBBDEDBEACBDBAACEACDCBEBDBDACADBDEDE",
+   "notaOficial": 437.9
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "DBBBDCBAEBADCCBDECBCBBBDACCCBDDEEBADCCCACBABD",
+   "notaOficial": 451.8
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "ECEBCBDBADBAAEECEEDCADDDDCECDACACBBCACEAEEDDD",
+   "notaOficial": 465.9
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "EAABDCADACBDCEAEEDDEACEDDADEDBBACACCAAADDDCC*",
+   "notaOficial": 480.2
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "BDADDBBAADBBBACEEDCDBCCEBACCBDCBAEBDDDEACCACD",
+   "notaOficial": 496.1
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "EDBBDBDABCDACCEAADDEEBDDAECA*CBECABCADBCCDACE",
+   "notaOficial": 513.0
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "ADDBBE*DDBCAAEBCEADDBCECBBEAABBEEABCDDACABEDE",
+   "notaOficial": 534.3
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "ABCABABBBDBBDEBDCAAAECBCBBBCCBBAABAECCABCCDDE",
+   "notaOficial": 559.5
+  },
+  {
+   "area": "CN",
+   "lingua": null,
+   "respostas": "EECCBADABBBDAEBDACDDABBCCBCCBCEAABBBDEADCDACE",
+   "notaOficial": 596.4
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "BAA..........................................",
+   "notaOficial": 336.8
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "DBDCBDCCBBCECECCCCCDCECDABDBCCCBACEECACBCBCCD",
+   "notaOficial": 385.3
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "CCBBCCADBDBBECBCDCCCDDEDBADCBBBCDCEABBBBCECEE",
+   "notaOficial": 409.3
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "DCDEDCBABDCCAEAEDCCBCDCDCADDBCDBCCEBCBBBCDCDB",
+   "notaOficial": 432.3
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "DBADDBEBCECBEABCBBBACDACEAACBDCCBDEDBEDECBBDB",
+   "notaOficial": 454.2
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "CECAABCDACCDCBBDEBAACDEBACDBEABDACEEBAAEDCDBB",
+   "notaOficial": 477.7
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "DCCBDCADAEEEDAEECDAEDDEAABCBCDACEBEDAAEECBBBD",
+   "notaOficial": 503.1
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "BCACBACDBCACABBBCCBCBCBAEDCBADCDCAEACAAEAECBE",
+   "notaOficial": 532.2
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "CCCCCAACEEA...BE.EA.B..BABDACEEDCDEABDDECEDBD",
+   "notaOficial": 562.8
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "DABCDBDDCDDBABEBDDBBCDEDCACAADCABCAEADBECACBB",
+   "notaOficial": 596.3
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "EEACBAEBBDCDBECAEACBBACCDDECBBABCDBACDBBCACBB",
+   "notaOficial": 634.3
+  },
+  {
+   "area": "MT",
+   "lingua": null,
+   "respostas": "DBBCBBEADECBBECCDDCBCDCCADCCBDCACBEAADBECACBE",
+   "notaOficial": 691.6
+  }
+ ]
+}

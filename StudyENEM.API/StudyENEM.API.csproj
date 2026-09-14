@@ -10,5 +10,11 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Scripts SQL executados pelas migrations (carga gerada por tools/enem-import/importar_enem.py) -->
+    <None Remove="Data\Migrations\Sql\*.sql" />
+    <EmbeddedResource Include="Data\Migrations\Sql\*.sql" />
   </ItemGroup>
 </Project>

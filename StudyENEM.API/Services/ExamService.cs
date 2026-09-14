@@ -5,176 +5,192 @@ using StudyENEM.API.Models;
 
 namespace StudyENEM.API.Services;
 
+/// <summary>Simulados: montagem (RF02), correção e resultado (RF04) e histórico (RF08).</summary>
 public class ExamService(AppDbContext db)
 {
-    public async Task<List<QuestionDto>> GetQuestionsAsync(int? year, string? area, int? count)
+    private static readonly string[] ForeignLanguages = ["ingles", "espanhol"];
+
+    public async Task<StartAttemptResponseDto> StartAttemptAsync(int userId, StartAttemptDto dto)
     {
-        var query = db.Questions.AsQueryable();
-        if (year.HasValue) query = query.Where(q => q.Year == year);
-        if (!string.IsNullOrEmpty(area)) query = query.Where(q => q.Area == area);
+        var mode = dto.Mode == "foco" ? "foco" : "geral";
+        var language = ForeignLanguages.Contains(dto.ForeignLanguage) ? dto.ForeignLanguage! : "ingles";
 
-        var list = await query.Select(q => new QuestionDto(
-            q.Id, q.Year, q.Area, q.Subject, q.Topic, q.Difficulty, q.Statement,
-            q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.OptionE
-        )).ToListAsync();
+        // Questões anuladas pelo INEP (sem gabarito) só entram na prova completa, para manter a
+        // numeração original do caderno; elas não contam na correção.
+        bool fullExam = mode == "geral" && dto.Count >= QuestionSelector.FullExamQuestions;
+        var query = db.Questions
+            .Include(q => q.Area)
+            .Include(q => q.Subject)
+            .Include(q => q.Topic)
+            .Include(q => q.Alternatives)
+            .Where(q => (fullExam || q.CorrectOption != null)
+                        && (q.ForeignLanguage == null || q.ForeignLanguage == language));
 
-        if (list.Count == 0) return list;
-
-        var rng = new Random();
-        list = list.OrderBy(_ => rng.Next()).ToList();
-
-        if (count.HasValue && count.Value > 0)
+        Area? area = null;
+        Topic? topic = null;
+        if (mode == "foco")
         {
-            var result = new List<QuestionDto>(count.Value);
-            for (int i = 0; i < count.Value; i++)
-                result.Add(list[i % list.Count]);
-            return result;
+            if (dto.TopicId is int topicId)
+            {
+                topic = await db.Topics.FindAsync(topicId) ?? throw new KeyNotFoundException("Conteúdo não encontrado.");
+                query = query.Where(q => q.TopicId == topicId);
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.AreaCode))
+            {
+                area = await db.Areas.FirstOrDefaultAsync(a => a.Code == dto.AreaCode)
+                    ?? throw new KeyNotFoundException("Área não encontrada.");
+                query = query.Where(q => q.AreaId == area.Id);
+            }
+            else
+            {
+                throw new ArgumentException("Informe a área ou o conteúdo do simulado focado.");
+            }
         }
 
-        return list;
-    }
+        var pool = await query.ToListAsync();
+        var selected = QuestionSelector.Select(pool, balanceAreas: mode == "geral", dto.Count, Random.Shared);
+        if (selected.Count == 0)
+            throw new InvalidOperationException("Não há questões disponíveis para essa configuração.");
 
-    public async Task<List<int>> GetAvailableYearsAsync() =>
-        await db.Questions.Select(q => q.Year).Distinct().OrderByDescending(y => y).ToListAsync();
-
-    public async Task<List<string>> GetAvailableAreasAsync() =>
-        await db.Questions.Select(q => q.Area).Distinct().OrderBy(a => a).ToListAsync();
-
-    public async Task<int> StartAttemptAsync(StartAttemptDto dto)
-    {
         var attempt = new Attempt
         {
-            StudentName = dto.StudentName,
+            UserId = userId,
+            Mode = mode,
+            AreaId = area?.Id ?? (topic is null ? null : selected[0].AreaId),
+            TopicId = topic?.Id,
+            ForeignLanguage = language,
             StartedAt = DateTime.UtcNow,
-            Year = dto.Year,
-            Area = dto.Area,
-            Mode = string.IsNullOrEmpty(dto.Mode) ? "geral" : dto.Mode,
+            TimeLimitSeconds = dto.Timed ? selected.Count * QuestionSelector.SecondsPerQuestion : null,
         };
+        int order = 0;
+        foreach (var q in selected)
+            attempt.Answers.Add(new AttemptAnswer { QuestionId = q.Id, Order = ++order });
+
         db.Attempts.Add(attempt);
         await db.SaveChangesAsync();
-        return attempt.Id;
+
+        return new StartAttemptResponseDto(attempt.Id, attempt.TimeLimitSeconds, selected.Select(q => new ExamQuestionDto(
+            q.Id, q.Year, q.Number, q.Area.Code, q.Area.Name, q.Subject.Name, q.Topic.Name, q.ForeignLanguage, q.Statement,
+            q.Alternatives.OrderBy(a => a.Letter).Select(a => new AlternativeDto(a.Letter, a.Text)).ToList()
+        )).ToList());
     }
 
-    public async Task<AttemptResultDto> SubmitAttemptAsync(SubmitAttemptDto dto)
-    {
-        var attempt = await db.Attempts.FindAsync(dto.AttemptId)
-            ?? throw new KeyNotFoundException($"Attempt {dto.AttemptId} not found");
-
-        var questionIds = dto.Answers.Select(a => a.QuestionId).Distinct().ToList();
-        var questions = await db.Questions
-            .Where(q => questionIds.Contains(q.Id))
-            .ToDictionaryAsync(q => q.Id);
-
-        var answers = dto.Answers.Select(a =>
-        {
-            var q = questions[a.QuestionId];
-            return new AttemptAnswer
-            {
-                AttemptId = attempt.Id,
-                QuestionId = a.QuestionId,
-                SelectedOption = a.SelectedOption,
-                IsCorrect = char.ToUpper(a.SelectedOption) == char.ToUpper(q.CorrectOption)
-            };
-        }).ToList();
-
-        db.AttemptAnswers.AddRange(answers);
-        attempt.FinishedAt = DateTime.UtcNow;
-        attempt.TimeTakenSeconds = dto.TimeTakenSeconds;
-        await db.SaveChangesAsync();
-
-        var details = answers.Select(a => new AnswerResultDto(
-            a.QuestionId,
-            questions[a.QuestionId].Subject,
-            questions[a.QuestionId].Topic,
-            questions[a.QuestionId].Area,
-            a.SelectedOption,
-            questions[a.QuestionId].CorrectOption,
-            a.IsCorrect
-        )).ToList();
-
-        int correct = answers.Count(a => a.IsCorrect);
-        return new AttemptResultDto(
-            attempt.Id, attempt.StudentName, attempt.StartedAt, attempt.FinishedAt!.Value,
-            answers.Count, correct,
-            answers.Count > 0 ? Math.Round((double)correct / answers.Count * 100, 1) : 0,
-            details
-        );
-    }
-
-    public async Task<AttemptResultDto?> GetAttemptResultAsync(int attemptId)
+    public async Task<AttemptResultDto> SubmitAttemptAsync(int userId, int attemptId, SubmitAttemptDto dto)
     {
         var attempt = await db.Attempts
-            .Include(a => a.Answers).ThenInclude(a => a.Question)
-            .FirstOrDefaultAsync(a => a.Id == attemptId);
+            .Include(a => a.Answers).ThenInclude(an => an.Question)
+            .FirstOrDefaultAsync(a => a.Id == attemptId && a.UserId == userId)
+            ?? throw new KeyNotFoundException("Simulado não encontrado.");
+        if (attempt.FinishedAt is not null)
+            throw new InvalidOperationException("Este simulado já foi finalizado.");
 
-        if (attempt == null || attempt.FinishedAt == null) return null;
+        var submitted = (dto.Answers ?? [])
+            .GroupBy(a => a.QuestionId)
+            .ToDictionary(g => g.Key, g => g.Last());
 
-        var details = attempt.Answers.Select(a => new AnswerResultDto(
-            a.QuestionId, a.Question.Subject, a.Question.Topic, a.Question.Area,
-            a.SelectedOption, a.Question.CorrectOption, a.IsCorrect
-        )).ToList();
+        foreach (var answer in attempt.Answers)
+        {
+            if (submitted.TryGetValue(answer.QuestionId, out var s))
+            {
+                answer.SelectedOption = NormalizeOption(s.SelectedOption);
+                answer.TimeSpentSeconds = s.TimeSpentSeconds is >= 0 ? s.TimeSpentSeconds : null;
+            }
+            // Em branco conta como erro, como no ENEM.
+            answer.IsCorrect = answer.SelectedOption is not null
+                               && answer.Question.CorrectOption is not null
+                               && answer.SelectedOption == answer.Question.CorrectOption;
+        }
 
-        int correct = attempt.Answers.Count(a => a.IsCorrect);
-        return new AttemptResultDto(
-            attempt.Id, attempt.StudentName, attempt.StartedAt, attempt.FinishedAt.Value,
-            attempt.Answers.Count, correct,
-            attempt.Answers.Count > 0 ? Math.Round((double)correct / attempt.Answers.Count * 100, 1) : 0,
-            details
-        );
+        attempt.FinishedAt = DateTime.UtcNow;
+        attempt.TimeTakenSeconds = dto.TimeTakenSeconds is >= 0
+            ? dto.TimeTakenSeconds
+            : attempt.Answers.Sum(a => a.TimeSpentSeconds ?? 0);
+
+        var scales = PerformanceCalculator.ScaleLookup(await db.TriScales.AsNoTracking().ToListAsync());
+        foreach (var result in PerformanceCalculator.BuildAttemptResults(attempt.Answers, scales))
+            attempt.Results.Add(result);
+
+        await db.SaveChangesAsync();
+        return (await GetAttemptResultAsync(userId, attemptId))!;
     }
 
-    public async Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(string studentName)
+    public async Task<AttemptResultDto?> GetAttemptResultAsync(int userId, int attemptId)
     {
-        var attempts = await db.Attempts
-            .Include(a => a.Answers).ThenInclude(a => a.Question)
-            .Where(a => a.StudentName == studentName && a.FinishedAt != null)
+        var attempt = await db.Attempts.AsNoTracking()
+            .Include(a => a.Area)
+            .Include(a => a.Topic)
+            .Include(a => a.Results).ThenInclude(r => r.Area)
+            .Include(a => a.Answers).ThenInclude(an => an.Question).ThenInclude(q => q.Area)
+            .Include(a => a.Answers).ThenInclude(an => an.Question).ThenInclude(q => q.Subject)
+            .Include(a => a.Answers).ThenInclude(an => an.Question).ThenInclude(q => q.Topic)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(a => a.Id == attemptId && a.UserId == userId);
+
+        if (attempt?.FinishedAt is null) return null;
+
+        var summary = ToSummary(attempt);
+        var byTopic = attempt.Answers
+            .Where(a => a.Question.CorrectOption is not null)
+            .GroupBy(a => a.Question.TopicId)
+            .Select(g =>
+            {
+                var q = g.First().Question;
+                int total = g.Count(), correct = g.Count(a => a.IsCorrect);
+                return new TopicResultDto(q.TopicId, q.Topic.Name, q.Subject.Name, q.Area.Code, total, correct,
+                    PerformanceCalculator.Percentage(correct, total));
+            })
+            .OrderBy(t => t.Percentage).ThenByDescending(t => t.Total)
+            .ToList();
+
+        var answers = attempt.Answers.OrderBy(a => a.Order).Select(a => new AnswerResultDto(
+            a.QuestionId, a.Order, a.Question.Year, a.Question.Number, a.Question.Area.Code,
+            a.Question.Subject.Name, a.Question.Topic.Name,
+            a.SelectedOption, a.Question.CorrectOption, a.IsCorrect, a.TimeSpentSeconds
+        )).ToList();
+
+        return new AttemptResultDto(
+            attempt.Id, attempt.Mode, attempt.Area?.Code, attempt.Topic?.Name,
+            attempt.StartedAt, attempt.FinishedAt.Value, attempt.TimeTakenSeconds,
+            summary.Total, summary.Correct, summary.Percentage, summary.TriAverage,
+            summary.ByArea, byTopic, answers);
+    }
+
+    public async Task<List<AttemptSummaryDto>> GetHistoryAsync(int userId)
+    {
+        var attempts = await db.Attempts.AsNoTracking()
+            .Include(a => a.Area)
+            .Include(a => a.Topic)
+            .Include(a => a.Results).ThenInclude(r => r.Area)
+            .Where(a => a.UserId == userId && a.FinishedAt != null)
             .OrderByDescending(a => a.FinishedAt)
             .ToListAsync();
 
-        var allAnswers = attempts.SelectMany(a => a.Answers).ToList();
-        int totalQuestions = allAnswers.Count;
-        int totalCorrect = allAnswers.Count(a => a.IsCorrect);
-        int totalTimeSeconds = attempts.Sum(a => a.TimeTakenSeconds ?? 0);
+        return attempts.Select(ToSummary).ToList();
+    }
 
-        var byArea = allAnswers
-            .GroupBy(a => a.Question.Area)
-            .Select(g => new AreaPerformanceDto(
-                g.Key, g.Count(), g.Count(a => a.IsCorrect),
-                g.Count() > 0 ? Math.Round((double)g.Count(a => a.IsCorrect) / g.Count() * 100, 1) : 0
-            )).ToList();
+    /// <summary>Resumo de um simulado finalizado; exige <c>Results.Area</c>, <c>Area</c> e <c>Topic</c> carregados.</summary>
+    internal static AttemptSummaryDto ToSummary(Attempt attempt)
+    {
+        var results = attempt.Results.OrderBy(r => r.Area.Order).ToList();
+        int total = results.Sum(r => r.TotalQuestions);
+        int correct = results.Sum(r => r.TotalCorrect);
 
-        var bySubject = allAnswers
-            .GroupBy(a => new { a.Question.Subject, a.Question.Area })
-            .Select(g => new SubjectPerformanceDto(
-                g.Key.Subject, g.Key.Area, g.Count(), g.Count(a => a.IsCorrect),
-                g.Count() > 0 ? Math.Round((double)g.Count(a => a.IsCorrect) / g.Count() * 100, 1) : 0
-            )).OrderBy(s => s.Percentage).ToList();
+        return new AttemptSummaryDto(
+            attempt.Id, attempt.FinishedAt!.Value, attempt.Mode, attempt.Area?.Code, attempt.Topic?.Name,
+            total, correct, PerformanceCalculator.Percentage(correct, total),
+            PerformanceCalculator.TriAverage(results.Select(r => r.TriScore)),
+            attempt.TimeTakenSeconds,
+            results.Select(r => new AreaResultDto(
+                r.Area.Code, r.Area.Name, r.TotalQuestions, r.TotalCorrect, r.Percentage,
+                r.TriScore is double score ? new TriScoreDto(score, r.TriStandardError ?? 0, r.TriItems) : null,
+                r.AverageTimeSeconds
+            )).ToList());
+    }
 
-        var recent = attempts.Take(10).Select(a => new AttemptSummaryDto(
-            a.Id, a.FinishedAt!.Value, a.Answers.Count, a.Answers.Count(ans => ans.IsCorrect),
-            a.Answers.Count > 0 ? Math.Round((double)a.Answers.Count(ans => ans.IsCorrect) / a.Answers.Count * 100, 1) : 0,
-            a.Area, a.Mode, a.TimeTakenSeconds
-        )).ToList();
-
-        var studyPlan = allAnswers
-            .Where(a => !string.IsNullOrEmpty(a.Question.Topic))
-            .GroupBy(a => new { a.Question.Topic, a.Question.Area })
-            .Select(g =>
-            {
-                int total = g.Count();
-                int correct = g.Count(a => a.IsCorrect);
-                int mastery = total > 0 ? (int)Math.Round((double)correct / total * 100) : 0;
-                string priority = mastery < 40 ? "alta" : mastery < 60 ? "média" : "baixa";
-                string reason = $"{mastery}% de acertos em {total} questão{(total > 1 ? "ões" : "")} respondida{(total > 1 ? "s" : "")}";
-                return new StudyPlanItemDto(g.Key.Topic, g.Key.Area, priority, mastery, total, reason);
-            })
-            .OrderBy(t => t.Mastery)
-            .Take(12)
-            .ToList();
-
-        return new PerformanceSummaryDto(
-            studentName, attempts.Count, totalQuestions, totalCorrect, totalTimeSeconds,
-            byArea, bySubject, recent, studyPlan
-        );
+    private static char? NormalizeOption(char? option)
+    {
+        if (option is null) return null;
+        char c = char.ToUpperInvariant(option.Value);
+        return c is >= 'A' and <= 'E' ? c : null;
     }
 }

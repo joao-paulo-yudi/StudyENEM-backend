@@ -11,16 +11,16 @@ public class AuthController(AuthService auth) : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var user = await auth.LoginAsync(dto);
-        if (user is null) return Unauthorized(new { message = "E-mail ou senha inválidos." });
-        return Ok(user);
+        var response = await auth.LoginAsync(dto);
+        if (response is null) return Unauthorized(new { message = "E-mail ou senha inválidos." });
+        return Ok(response);
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
-        var (user, error) = await auth.RegisterAsync(dto);
+        var (response, error) = await auth.RegisterAsync(dto);
         if (error is not null) return BadRequest(new { message = error });
-        return Ok(user);
+        return Ok(response);
     }
 }

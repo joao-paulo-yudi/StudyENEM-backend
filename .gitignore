@@ -8,6 +8,10 @@ obj/
 .vs/
 .idea/
 
+# Importador de dados do ENEM (downloads intermediários)
+tools/enem-import/.cache/
+__pycache__/
+
 # Local DB
 *.db
 *.db-shm
