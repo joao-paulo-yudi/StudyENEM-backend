@@ -34,8 +34,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Email).HasColumnName("email");
             e.Property(x => x.PasswordHash).HasColumnName("senha_hash");
             e.Property(x => x.PasswordSalt).HasColumnName("senha_salt");
+            e.Property(x => x.GoogleId).HasColumnName("google_id");
             e.Property(x => x.CreatedAt).HasColumnName("data_cadastro");
             e.HasIndex(x => x.Email).IsUnique();
+            // No PostgreSQL um índice único ignora os NULLs: contas sem Google não conflitam.
+            e.HasIndex(x => x.GoogleId).IsUnique();
         });
 
         mb.Entity<Area>(e =>

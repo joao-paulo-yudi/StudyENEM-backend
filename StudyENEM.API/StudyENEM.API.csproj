@@ -11,6 +11,8 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
+    <!-- Validação do ID token do Google Identity Services (login social). -->
+    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
   </ItemGroup>
   <ItemGroup>
     <!-- Scripts SQL executados pelas migrations (carga gerada por tools/enem-import/importar_enem.py) -->

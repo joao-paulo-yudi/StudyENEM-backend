@@ -47,7 +47,12 @@ builder.Services
     });
 builder.Services.AddAuthorization();
 
+// Login com Google (opcional): defina Google__ClientId com o ID do cliente OAuth 2.0 do
+// Google Cloud Console. Sem ele, a API responde apenas ao login por e-mail e senha.
+builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.Section));
+
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<GoogleAuthService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuestionService>();
 builder.Services.AddScoped<ExamService>();
@@ -81,6 +86,8 @@ using (var scope = app.Services.CreateScope())
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     if (usingDevelopmentKey)
         logger.LogWarning("Jwt:Key não configurada: usando a chave de desenvolvimento. Defina Jwt__Key em produção.");
+    if (!scope.ServiceProvider.GetRequiredService<GoogleAuthService>().Enabled)
+        logger.LogInformation("Google:ClientId não configurada: o login com Google fica indisponível na tela de login.");
 
     // Aplica as migrations (esquema + banco de questões) e cria os dados de demonstração.
     DatabaseInitializer.Initialize(scope.ServiceProvider.GetRequiredService<AppDbContext>(), logger);

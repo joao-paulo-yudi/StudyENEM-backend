@@ -20,7 +20,8 @@ public static class PasswordHasher
         return (Convert.ToBase64String(key), Convert.ToBase64String(salt));
     }
 
-    public static bool Verify(string password, string hash, string salt)
+    /// <summary>Falso quando a conta não tem senha local (login apenas pelo Google).</summary>
+    public static bool Verify(string password, string? hash, string? salt)
     {
         if (string.IsNullOrEmpty(hash) || string.IsNullOrEmpty(salt)) return false;
         var saltBytes = Convert.FromBase64String(salt);
