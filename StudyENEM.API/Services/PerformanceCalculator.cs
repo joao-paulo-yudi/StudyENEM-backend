@@ -90,6 +90,26 @@ public static class PerformanceCalculator
         return times.Count > 0 ? Math.Round(times.Average(), 1) : null;
     }
 
+    /// <summary>
+    /// Desempenho por conteúdo, do mais difícil para o mais fácil. É a base tanto dos
+    /// indicadores do dashboard quanto da priorização do plano de estudos.
+    /// </summary>
+    public static List<TopicPerformanceDto> ByTopic(IEnumerable<AttemptAnswer> answers) =>
+        answers
+            .GroupBy(a => a.Question.TopicId)
+            .Select(g =>
+            {
+                var q = g.First().Question;
+                int total = g.Count(), correct = g.Count(a => a.IsCorrect);
+                return new TopicPerformanceDto(
+                    q.TopicId, q.Topic.Name, q.Subject.Name, q.Area.Code, total, correct,
+                    Percentage(correct, total),
+                    DifficultyIndex(correct, total),
+                    AverageTime(g));
+            })
+            .OrderByDescending(t => t.DifficultyIndex).ThenByDescending(t => t.Total)
+            .ToList();
+
     /// <summary>Índice de dificuldade do conteúdo: proporção de erros no histórico (0 a 1).</summary>
     public static double DifficultyIndex(int correct, int total) =>
         total > 0 ? Math.Round((double)(total - correct) / total, 2) : 0;

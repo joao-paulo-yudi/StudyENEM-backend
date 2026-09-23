@@ -57,6 +57,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<QuestionService>();
 builder.Services.AddScoped<ExamService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<StudyPlanService>();
 builder.Services.AddControllers(o => o.Filters.Add<ApiExceptionFilter>());
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using StudyENEM.API.Data;
 using StudyENEM.API.DTOs;
@@ -8,8 +7,6 @@ namespace StudyENEM.API.Services;
 /// <summary>Indicadores do dashboard (RF05) e plano de estudos (RF06).</summary>
 public class DashboardService(AppDbContext db)
 {
-    private static readonly CultureInfo PtBr = new("pt-BR");
-
     public async Task<PerformanceSummaryDto> GetSummaryAsync(int userId)
     {
         var user = await db.Users.FindAsync(userId) ?? throw new KeyNotFoundException("Usuário não encontrado.");
@@ -61,31 +58,9 @@ public class DashboardService(AppDbContext db)
             .OrderBy(s => s.Percentage)
             .ToList();
 
-        var byTopic = answers
-            .GroupBy(a => a.Question.TopicId)
-            .Select(g =>
-            {
-                var q = g.First().Question;
-                int total = g.Count(), correct = g.Count(a => a.IsCorrect);
-                return new TopicPerformanceDto(
-                    q.TopicId, q.Topic.Name, q.Subject.Name, q.Area.Code, total, correct,
-                    PerformanceCalculator.Percentage(correct, total),
-                    PerformanceCalculator.DifficultyIndex(correct, total),
-                    PerformanceCalculator.AverageTime(g));
-            })
-            .OrderByDescending(t => t.DifficultyIndex).ThenByDescending(t => t.Total)
-            .ToList();
-
-        var studyPlan = byTopic.Select(t =>
-        {
-            int wrong = t.Total - t.Correct;
-            string reason = $"{wrong} {(wrong == 1 ? "erro" : "erros")} em {t.Total} {(t.Total == 1 ? "questão" : "questões")} · " +
-                            $"índice de dificuldade {t.DifficultyIndex.ToString("0.00", PtBr)}";
-            return new StudyPlanItemDto(
-                t.TopicId, t.Topic, t.Subject, t.AreaCode,
-                PerformanceCalculator.Priority(t.DifficultyIndex),
-                t.DifficultyIndex, (int)Math.Round(t.Percentage), t.Total, reason);
-        }).ToList();
+        var byTopic = PerformanceCalculator.ByTopic(answers);
+        // O resumo traz o plano sem as fontes de estudo; a versão completa está em GET /api/studyplan.
+        var studyPlan = StudyPlanService.BuildItems(byTopic);
 
         var history = attempts.Select(ExamService.ToSummary).ToList();
         ComparisonDto? comparison = history.Count >= 2

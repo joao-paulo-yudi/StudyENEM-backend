@@ -364,6 +364,66 @@ namespace StudyENEM.API.Data.Migrations
                     b.ToTable("habilidade", (string)null);
                 });
 
+            modelBuilder.Entity("StudyENEM.API.Models.StudyResource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("descricao");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordem");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fonte");
+
+                    b.Property<int?>("SubjectId")
+                        .HasColumnType("integer")
+                        .HasColumnName("disciplina_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("titulo");
+
+                    b.Property<int?>("TopicId")
+                        .HasColumnType("integer")
+                        .HasColumnName("conteudo_id");
+
+                    b.Property<string>("UrlTemplate")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("url_modelo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopicId");
+
+                    b.HasIndex("SubjectId", "TopicId", "Kind");
+
+                    b.HasIndex("SubjectId", "TopicId", "UrlTemplate")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("SubjectId", "TopicId", "UrlTemplate"), false);
+
+                    b.ToTable("recurso", (string)null);
+                });
+
             modelBuilder.Entity("StudyENEM.API.Models.Subject", b =>
                 {
                     b.Property<int>("Id")
@@ -625,6 +685,23 @@ namespace StudyENEM.API.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Area");
+                });
+
+            modelBuilder.Entity("StudyENEM.API.Models.StudyResource", b =>
+                {
+                    b.HasOne("StudyENEM.API.Models.Subject", "Subject")
+                        .WithMany()
+                        .HasForeignKey("SubjectId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("StudyENEM.API.Models.Topic", "Topic")
+                        .WithMany()
+                        .HasForeignKey("TopicId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Subject");
+
+                    b.Navigation("Topic");
                 });
 
             modelBuilder.Entity("StudyENEM.API.Models.Subject", b =>

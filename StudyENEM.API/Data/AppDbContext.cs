@@ -7,7 +7,7 @@ namespace StudyENEM.API.Data;
 /// Contexto do banco. As classes seguem a nomenclatura em inglês do código, mas as
 /// tabelas e colunas são mapeadas com os nomes do Diagrama Entidade-Relacionamento
 /// do relatório (usuario, simulado, resposta, questao, alternativa, resultado,
-/// area, disciplina, conteudo), acrescido de habilidade e escala_tri.
+/// area, disciplina, conteudo), acrescido de habilidade, escala_tri e recurso.
 /// O esquema e o banco de questões são criados pelas migrations em Data/Migrations.
 /// </summary>
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
@@ -23,6 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AttemptAnswer> AttemptAnswers => Set<AttemptAnswer>();
     public DbSet<AttemptResult> AttemptResults => Set<AttemptResult>();
     public DbSet<TriScale> TriScales => Set<TriScale>();
+    public DbSet<StudyResource> StudyResources => Set<StudyResource>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -169,6 +170,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.AverageTimeSeconds).HasColumnName("tempo_medio_segundos");
             e.HasOne(x => x.Attempt).WithMany(a => a.Results).HasForeignKey(x => x.AttemptId);
             e.HasOne(x => x.Area).WithMany().HasForeignKey(x => x.AreaId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        mb.Entity<StudyResource>(e =>
+        {
+            e.ToTable("recurso");
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.SubjectId).HasColumnName("disciplina_id");
+            e.Property(x => x.TopicId).HasColumnName("conteudo_id");
+            e.Property(x => x.Kind).HasColumnName("tipo").HasMaxLength(20);
+            e.Property(x => x.Title).HasColumnName("titulo");
+            e.Property(x => x.Provider).HasColumnName("fonte");
+            e.Property(x => x.UrlTemplate).HasColumnName("url_modelo");
+            e.Property(x => x.Description).HasColumnName("descricao");
+            e.Property(x => x.Order).HasColumnName("ordem");
+            e.HasOne(x => x.Subject).WithMany().HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Topic).WithMany().HasForeignKey(x => x.TopicId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.SubjectId, x.TopicId, x.Kind });
+            // A mesma fonte não se repete para a mesma disciplina/conteúdo.
+            e.HasIndex(x => new { x.SubjectId, x.TopicId, x.UrlTemplate }).IsUnique().AreNullsDistinct(false);
         });
 
         mb.Entity<TriScale>(e =>
