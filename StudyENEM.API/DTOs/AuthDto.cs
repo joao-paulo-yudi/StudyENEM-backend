@@ -7,8 +7,12 @@ public record RegisterDto(string Name, string Email, string Password);
 /// <summary>ID token devolvido pelo Google Identity Services no navegador.</summary>
 public record GoogleLoginDto(string Credential);
 
-/// <summary>Provedores de login habilitados no servidor, consultados pela tela de login.</summary>
-public record AuthConfigDto(string? GoogleClientId);
+/// <summary>
+/// Provedores de login social habilitados no servidor, consultados pela tela de login: cada
+/// provedor só aparece em <see cref="Providers"/> quando tem configuração própria (o Google,
+/// com Google__ClientId). Hoje o único provedor integrado é o Google.
+/// </summary>
+public record AuthConfigDto(IReadOnlyList<string> Providers, string? GoogleClientId);
 
 public record AuthUserDto(int Id, string Name, string Email);
 

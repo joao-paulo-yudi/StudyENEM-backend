@@ -1,13 +1,27 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using StudyENEM.API.Data;
 using StudyENEM.API.Infrastructure;
 using StudyENEM.API.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+// Comandos de manutenção dos dados de demonstração, que rodam e encerram sem subir o servidor HTTP.
+// No ambiente de avaliação: docker compose ... exec backend dotnet StudyENEM.API.dll demo reset
+//   demo seed   aplica as migrations e cria as contas e os históricos que faltam (idempotente)
+//   demo reset  volta ao estado inicial da avaliação (só com Demo__Accounts > 0)
+string? demoCommand = args is ["demo", var command, ..] ? command : null;
+if (demoCommand is not null and not ("seed" or "reset"))
+{
+    Console.Error.WriteLine("Uso: dotnet StudyENEM.API.dll demo seed|reset");
+    Environment.ExitCode = 2;
+    return;
+}
+
+var builder = WebApplication.CreateBuilder(demoCommand is null ? args : args[2..]);
 
 // A string de conexão padrão aponta para localhost (uso local); no Docker é
 // sobrescrita por ConnectionStrings__Default apontando para o serviço "postgres".
@@ -21,6 +35,9 @@ builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogL
 var jwt = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
 bool usingDevelopmentKey = string.IsNullOrWhiteSpace(jwt.Key);
 if (usingDevelopmentKey) jwt.Key = "studyenem-chave-de-desenvolvimento-nao-usar-em-producao";
+// HMAC-SHA256 exige chave de 256 bits: uma chave curta só falharia no primeiro login (erro 500).
+if (Encoding.UTF8.GetByteCount(jwt.Key) < 32)
+    throw new InvalidOperationException("Jwt:Key precisa ter ao menos 32 caracteres. Gere uma com: openssl rand -hex 32");
 builder.Services.Configure<JwtOptions>(o =>
 {
     o.Key = jwt.Key;
@@ -51,6 +68,10 @@ builder.Services.AddAuthorization();
 // Google Cloud Console. Sem ele, a API responde apenas ao login por e-mail e senha.
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.Section));
 
+// Contas de demonstração: demo01..demoNN no ambiente de avaliação (Demo__Accounts e Demo__Password);
+// sem configuração, só a conta joao@studyenem.com do desenvolvimento.
+builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.Section));
+
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<GoogleAuthService>();
 builder.Services.AddScoped<AuthService>();
@@ -76,9 +97,18 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", bearer);
     c.AddSecurityRequirement(new OpenApiSecurityRequirement { [bearer] = [] });
 });
-builder.Services.AddHealthChecks();
-builder.Services.AddCors(opt =>
-    opt.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
+builder.Services.Configure<ForwardedHeadersOptions>(ForwardedHeadersSetup.Configure);
+
+// CORS só existe no desenvolvimento, quando o ng serve (porta 4200) chama a API na porta 8080.
+// No Docker e na avaliação o nginx serve o frontend e a API na mesma origem, sem CORS.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddCors(opt => opt.AddDefaultPolicy(p => p
+        .WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
+}
 
 var app = builder.Build();
 
@@ -91,13 +121,26 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Google:ClientId não configurada: o login com Google fica indisponível na tela de login.");
 
     // Aplica as migrations (esquema + banco de questões) e cria os dados de demonstração.
-    DatabaseInitializer.Initialize(scope.ServiceProvider.GetRequiredService<AppDbContext>(), logger);
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var demo = scope.ServiceProvider.GetRequiredService<IOptions<DemoOptions>>().Value;
+    DatabaseInitializer.Initialize(db, demo, logger);
+    if (demoCommand == "reset") DemoSeed.Reset(db, demo, logger);
 }
 
-app.UseCors();
+if (demoCommand is not null) return;
+
+// Primeiro do pipeline: esquema e IP do cliente vêm do proxy (X-Forwarded-Proto/For).
+app.UseForwardedHeaders();
+
+// Não há UseHttpsRedirection: o TLS termina na Cloudflare, e a API só recebe HTTP do nginx.
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseStaticFiles(); // wwwroot/midia: imagens das questões
-app.UseSwagger();
-app.UseSwaggerUI();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapHealthChecks("/health");

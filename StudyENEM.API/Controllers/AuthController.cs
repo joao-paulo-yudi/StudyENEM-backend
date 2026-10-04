@@ -8,9 +8,14 @@ namespace StudyENEM.API.Controllers;
 [Route("api/[controller]")]
 public class AuthController(AuthService auth, GoogleAuthService google) : ControllerBase
 {
-    /// <summary>Provedores de login habilitados; a tela de login usa o ID do cliente do Google.</summary>
+    /// <summary>Provedores de login habilitados; a tela de login exibe só os botões listados.</summary>
     [HttpGet("config")]
-    public IActionResult Config() => Ok(new AuthConfigDto(google.ClientId));
+    public IActionResult Config()
+    {
+        var providers = new List<string>();
+        if (google.Enabled) providers.Add("google");
+        return Ok(new AuthConfigDto(providers, google.ClientId));
+    }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)

@@ -10,7 +10,7 @@ namespace StudyENEM.API.Data;
 /// </summary>
 public static class DatabaseInitializer
 {
-    public static void Initialize(AppDbContext db, ILogger logger)
+    public static void Initialize(AppDbContext db, DemoOptions demo, ILogger logger)
     {
         // O PostgreSQL pode levar alguns segundos para aceitar conexões na 1ª subida.
         for (var attempt = 1; ; attempt++)
@@ -31,7 +31,7 @@ public static class DatabaseInitializer
             }
         }
 
-        DemoSeed.Apply(db, logger);
+        DemoSeed.Apply(db, demo, logger);
     }
 
     private static void ApplyMigrations(AppDbContext db, ILogger logger)

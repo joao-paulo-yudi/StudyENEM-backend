@@ -56,6 +56,7 @@ public class DashboardService(AppDbContext db)
                 return new SubjectPerformanceDto(q.Subject.Name, q.Area.Code, total, correct, PerformanceCalculator.Percentage(correct, total));
             })
             .OrderBy(s => s.Percentage)
+            .ThenBy(s => s.Subject, PerformanceCalculator.NameOrder)
             .ToList();
 
         var byTopic = PerformanceCalculator.ByTopic(answers);

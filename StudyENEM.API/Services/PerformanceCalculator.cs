@@ -1,3 +1,4 @@
+using System.Globalization;
 using StudyENEM.API.DTOs;
 using StudyENEM.API.Models;
 
@@ -9,6 +10,13 @@ namespace StudyENEM.API.Services;
 /// </summary>
 public static class PerformanceCalculator
 {
+    /// <summary>
+    /// Desempate alfabético das listas de desempenho. Sem ele, itens empatados apareceriam na ordem em
+    /// que as respostas chegam do banco, que muda de uma consulta para outra: o painel e o plano poderiam
+    /// mostrar conteúdos diferentes nas mesmas posições.
+    /// </summary>
+    public static readonly StringComparer NameOrder = StringComparer.Create(new CultureInfo("pt-BR"), ignoreCase: false);
+
     public static IReadOnlyDictionary<(int AreaId, int Year), TriScale> ScaleLookup(IEnumerable<TriScale> scales) =>
         scales.ToDictionary(s => (s.AreaId, s.Year));
 
@@ -108,6 +116,7 @@ public static class PerformanceCalculator
                     AverageTime(g));
             })
             .OrderByDescending(t => t.DifficultyIndex).ThenByDescending(t => t.Total)
+            .ThenBy(t => t.Topic, NameOrder).ThenBy(t => t.TopicId)
             .ToList();
 
     /// <summary>Índice de dificuldade do conteúdo: proporção de erros no histórico (0 a 1).</summary>
