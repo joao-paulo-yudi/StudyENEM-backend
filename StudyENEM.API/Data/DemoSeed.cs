@@ -4,7 +4,7 @@ using StudyENEM.API.Services;
 
 namespace StudyENEM.API.Data;
 
-/// <summary>Contas de demonstração. Configure por Demo__Accounts e Demo__Password.</summary>
+/// <summary>Contas de demonstração. Configure por Demo__Accounts, Demo__Password e Demo__ExtraAccounts.</summary>
 public class DemoOptions
 {
     public const string Section = "Demo";
@@ -17,6 +17,13 @@ public class DemoOptions
 
     /// <summary>Senha comum às contas demoNN.</summary>
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Contas de demonstração adicionais, com e-mail, senha e nome próprios e o mesmo histórico das demais
+    /// (por exemplo, para uma apresentação). Formato "email|senha|nome", separadas por ";"; o nome é
+    /// opcional. São recriadas pelo reset como as demoNN.
+    /// </summary>
+    public string ExtraAccounts { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -31,15 +38,35 @@ public static class DemoSeed
 
     private static readonly DemoAccount DevelopmentAccount = new("João Teste", "joao@studyenem.com", "1234");
 
-    private static IReadOnlyList<DemoAccount> Accounts(DemoOptions options) => options.Accounts > 0
-        ? Enumerable.Range(1, options.Accounts)
-            .Select(i => new DemoAccount($"Estudante Demo {i:00}", $"demo{i:00}@studyenem.com", options.Password))
-            .ToList()
-        : [DevelopmentAccount];
+    private static IReadOnlyList<DemoAccount> Accounts(DemoOptions options)
+    {
+        List<DemoAccount> accounts = options.Accounts > 0
+            ? Enumerable.Range(1, options.Accounts)
+                .Select(i => new DemoAccount($"Estudante Demo {i:00}", $"demo{i:00}@studyenem.com", options.Password))
+                .ToList()
+            : [DevelopmentAccount];
+        accounts.AddRange(ExtraAccounts(options));
+        return accounts;
+    }
+
+    // A mensagem de erro cita só a posição da entrada, para a senha não ir parar no log.
+    private static IEnumerable<DemoAccount> ExtraAccounts(DemoOptions options) =>
+        (options.ExtraAccounts ?? string.Empty)
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select((entry, index) =>
+            {
+                var parts = entry.Split('|', StringSplitOptions.TrimEntries);
+                if (parts.Length < 2 || !parts[0].Contains('@') || parts[1].Length == 0)
+                    throw new InvalidOperationException($"Demo:ExtraAccounts: a entrada {index + 1} precisa estar no formato email|senha|nome.");
+                var email = parts[0].ToLowerInvariant();
+                var name = parts.Length >= 3 && parts[2].Length > 0 ? parts[2] : email.Split('@')[0];
+                return new DemoAccount(name, email, parts[1]);
+            });
 
     /// <summary>
-    /// Cria as contas que faltam e o histórico de cada conta que ainda não tem simulados.
-    /// Idempotente: contas e históricos existentes não são alterados.
+    /// Cria as contas que faltam e o histórico de cada conta que ainda não tem simulados. Contas que já
+    /// existem recebem o nome e a senha configurados (assim uma senha nova no .env vale sem reset);
+    /// históricos existentes não são alterados. Idempotente.
     /// </summary>
     public static void Apply(AppDbContext db, DemoOptions options, ILogger logger)
     {
@@ -54,6 +81,15 @@ public static class DemoSeed
                 db.Users.Add(user);
                 db.SaveChanges();
             }
+            else if (user.Name != account.Name || !PasswordHasher.Verify(account.Password, user.PasswordHash, user.PasswordSalt))
+            {
+                var fresh = NewUser(account);
+                user.Name = fresh.Name;
+                user.PasswordHash = fresh.PasswordHash;
+                user.PasswordSalt = fresh.PasswordSalt;
+                db.SaveChanges();
+                logger.LogInformation("Nome e senha de {Email} atualizados conforme a configuração.", account.Email);
+            }
 
             if (!db.Attempts.Any(a => a.UserId == user.Id) && SeedHistory(db, user))
                 logger.LogInformation("Histórico de demonstração criado para {Email}.", account.Email);
@@ -61,10 +97,10 @@ public static class DemoSeed
     }
 
     /// <summary>
-    /// Volta o banco ao estado inicial da avaliação: apaga todos os simulados e todas as contas que não
-    /// são demoNN (inclusive as criadas pelos avaliadores), restaura nome e senha das contas demoNN e
-    /// recria os históricos. As contas demoNN mantêm o id, então quem já estava logado continua na
-    /// mesma conta; os ids das contas apagadas nunca são reaproveitados.
+    /// Volta o banco ao estado inicial da avaliação: apaga todos os simulados e todas as contas fora da
+    /// lista de demonstração (demoNN e extras), inclusive as criadas pelos avaliadores, restaura nome e
+    /// senha das contas da lista e recria os históricos. Essas contas mantêm o id, então quem já estava
+    /// logado continua na mesma conta; os ids das contas apagadas nunca são reaproveitados.
     /// </summary>
     public static void Reset(AppDbContext db, DemoOptions options, ILogger logger)
     {
@@ -93,7 +129,7 @@ public static class DemoSeed
             db.SaveChanges();
             transaction.Commit();
 
-            logger.LogInformation("Reset: {Attempts} simulados e {Users} contas fora da lista demoNN apagados.", attempts, users);
+            logger.LogInformation("Reset: {Attempts} simulados e {Users} contas fora da lista de demonstração apagados.", attempts, users);
         }
 
         db.ChangeTracker.Clear();
@@ -106,6 +142,9 @@ public static class DemoSeed
             throw new InvalidOperationException($"Demo:Accounts precisa estar entre 0 e {MaxAccounts}.");
         if (options.Accounts > 0 && string.IsNullOrWhiteSpace(options.Password))
             throw new InvalidOperationException("Defina Demo:Password, a senha das contas demoNN.");
+        var duplicate = Accounts(options).GroupBy(a => a.Email).FirstOrDefault(g => g.Count() > 1);
+        if (duplicate is not null)
+            throw new InvalidOperationException($"Conta de demonstração repetida: {duplicate.Key}.");
     }
 
     private static User NewUser(DemoAccount account)
